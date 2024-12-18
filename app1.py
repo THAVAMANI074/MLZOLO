@@ -1,3 +1,4 @@
+# Import necessary libraries
 import joblib
 import pandas as pd
 import streamlit as st
@@ -21,8 +22,8 @@ def prepare_features(tomatometer_rating):
     """
     Prepare the feature set (X) for Random Forest prediction using user inputs.
     """
-    tomatometer_status = st.session_state.get('tomatometer_status', 'Certified Fresh')
-    tomatometer_count = st.session_state.get('tomatometer_count', 550)
+    tomatometer_status = st.session_state.get("tomatometer_status", "Certified Fresh")
+    tomatometer_count = st.session_state.get("tomatometer_count", 550)
 
     # Encode the tomatometer status into numeric form
     status_mapping = {"Fresh": 0, "Certified Fresh": 1, "Rotten": 2}
