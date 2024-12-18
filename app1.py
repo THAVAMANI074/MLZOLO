@@ -1,100 +1,68 @@
-
-# Load the trained model
 import joblib
 import pandas as pd
-import numpy as np
 import streamlit as st
 
-# Load the trained model
+# Load the trained Random Forest model
 model_file = "random_forest_model.pkl"
 model = joblib.load(model_file)
 
-# Load the label encoder
-label_encoder_file = "label_encoder.pkl"
-label_encoder = joblib.load(label_encoder_file)
-
 # Title and description for Streamlit app
-st.title("🎬 Audience Rating Prediction App")
+st.title("🎬 Random Forest Audience Rating Prediction")
 st.markdown(
     """
-    Welcome to the **Audience Rating Prediction App**!  
-    🎥 Use this tool to predict the audience rating for a movie based on key details.  
-    Adjust the parameters and let the model predict the audience's response!
+    **Welcome!**  
+    This app predicts the audience rating for a movie using a trained Random Forest model.  
+    Adjust inputs in the sidebar and hit **Predict**!
     """
 )
 
-# Main layout
-with st.sidebar:
-    st.header("⚙️ Input Movie Details")
-    st.info("Fill in the required details below:")
-
-    movie_title = st.text_input("Movie Title", "Blockbuster Movie")
-    genre = st.text_input("Genre", "Drama")
-    directors = st.text_input("Director(s)", "Famous Director")
-    writers = st.text_input("Writer(s)", "Top Screenwriter")
-    cast = st.text_input("Cast", "Famous Actor A, Famous Actor B")
-    studio_name = st.text_input("Studio Name", "Top Studio")
-    rating = st.selectbox("Rating", ["G", "PG", "PG-13", "R", "NC-17"], index=2)
-    runtime = st.number_input("Runtime (in minutes)", min_value=1, max_value=500, value=150)
-    tomatometer_status = st.selectbox(
-        "Tomatometer Status", ["Fresh", "Certified Fresh", "Rotten"], index=1
-    )
-    tomatometer_rating = st.number_input(
-        "Tomatometer Rating", min_value=0, max_value=100, value=85
-    )
-    tomatometer_count = st.number_input("Tomatometer Count", min_value=1, value=550)
-    in_theaters_date = st.date_input("In Theaters Date")
-    on_streaming_date = st.date_input("On Streaming Date")
-
-with st.expander("Additional Information (Optional)"):
-    movie_info = st.text_area("Movie Info", "An outstanding critically acclaimed movie")
-    critics_consensus = st.text_input("Critics Consensus", "Overwhelmingly positive reviews")
-
-# Function to create movie data
-def create_movie_data():
+# Function to prepare input features for the Random Forest model
+def prepare_features(tomatometer_rating):
     """
-    Prepare a DataFrame with user-input movie data.
+    Prepare the feature set (X) for Random Forest prediction using user inputs.
     """
-    data = {
-        "movie_title": [movie_title],
-        "movie_info": [movie_info],
-        "critics_consensus": [critics_consensus],
-        "rating": [rating],
-        "genre": [genre],
-        "directors": [directors],
-        "writers": [writers],
-        "cast": [cast],
-        "in_theaters_date": [in_theaters_date],
-        "on_streaming_date": [on_streaming_date],
-        "runtime_in_minutes": [runtime],
-        "studio_name": [studio_name],
-        "tomatometer_status": [tomatometer_status],
-        "tomatometer_rating": [tomatometer_rating],
-        "tomatometer_count": [tomatometer_count],
-    }
-    return pd.DataFrame(data)
+    tomatometer_status = st.session_state.get('tomatometer_status', 'Certified Fresh')
+    tomatometer_count = st.session_state.get('tomatometer_count', 550)
 
-# Generate predictions
+    # Encode the tomatometer status into numeric form
+    status_mapping = {"Fresh": 0, "Certified Fresh": 1, "Rotten": 2}
+    tomatometer_status_encoded = status_mapping[tomatometer_status]
+
+    # Define the feature set (X)
+    X = pd.DataFrame(
+        {
+            "tomatometer_status_encoded": [tomatometer_status_encoded],
+            "tomatometer_rating": [tomatometer_rating],
+            "tomatometer_count": [tomatometer_count],
+        }
+    )
+    return X
+
+# Sidebar inputs
+st.sidebar.header("📋 Movie Details")
+st.sidebar.selectbox("Tomatometer Status", ["Fresh", "Certified Fresh", "Rotten"], index=1, key="tomatometer_status")
+st.sidebar.number_input("Tomatometer Count", min_value=1, value=550, key="tomatometer_count")
+
+# Main UI for tomatometer rating selection
+st.subheader("📊 Select Tomatometer Rating")
+selected_tomatometer_rating = st.slider(
+    "Choose a Tomatometer Rating:", min_value=10, max_value=100, value=85
+)
+
+# Predict button
 if st.button("Predict Audience Rating 🎯"):
-    # Create movie data
-    movie_data = create_movie_data()
+    # Prepare the features (X)
+    X = prepare_features(selected_tomatometer_rating)
 
-    # Encode the categorical column
-    movie_data["tomatometer_status_encoded"] = label_encoder.transform(
-        movie_data["tomatometer_status"]
-    )
+    # Predict using the Random Forest model
+    y_pred = model.predict(X)[0]
 
-    # Define the features for prediction
-    X = movie_data[["tomatometer_status_encoded", "tomatometer_rating", "tomatometer_count"]]
+    # Display prediction results
+    st.success(f"**Predicted Audience Rating:** {y_pred:.2f}")
+    st.write(f"**Selected Tomatometer Rating:** {selected_tomatometer_rating}")
 
-    # Predict audience rating
-    predicted_rating = model.predict(X)[0]
-
-    # Display the result
-    st.success(f"**Predicted Audience Rating:** {predicted_rating:.2f}")
-
-    # Display movie data
-    st.write("### Movie Features Used for Prediction")
-    st.dataframe(movie_data, use_container_width=True)
+    # Display the feature set used for prediction
+    st.write("### Features Used for Prediction:")
+    st.dataframe(X, use_container_width=True)
 else:
-    st.write("👈 Enter the details in the sidebar and click **Predict Audience Rating 🎯**")
+    st.info("👈 Adjust the details in the sidebar, select a tomatometer rating, and click **Predict Audience Rating 🎯**.")
